@@ -335,6 +335,54 @@
   nav.tabbar button.active{color:var(--accent);}
   nav.tabbar button:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
 
+  /* ---------- clickable text ---------- */
+  .linklike{
+    background:none; border:none; padding:0; margin:0; text-align:left; font:inherit; color:inherit; cursor:pointer;
+    text-decoration-line:underline; text-decoration-color:rgba(255,255,255,0.28); text-underline-offset:3px;
+  }
+  .linklike:hover, .linklike:focus-visible{text-decoration-color:var(--accent);}
+  button.linklike.ttl{display:block; width:100%;}
+  .aff-hint{color:var(--accent); font-size:11px; margin-left:3px;}
+
+  /* ---------- sheet (bio / abstract) ---------- */
+  .sheet-overlay{
+    position:absolute; inset:0; background:rgba(5,8,24,0.62);
+    opacity:0; pointer-events:none; transition:opacity .25s ease; z-index:40;
+  }
+  .sheet-overlay.open{opacity:1; pointer-events:auto;}
+  .sheet{
+    position:absolute; left:0; right:0; bottom:0; max-height:84%;
+    background:var(--surface); border-top:1px solid var(--line-strong);
+    border-radius:20px 20px 0 0;
+    transform:translateY(100%);
+    transition:transform .3s cubic-bezier(.32,.72,0,1);
+    z-index:41; display:flex; flex-direction:column;
+    box-shadow:0 -24px 60px -12px rgba(0,0,0,0.55);
+  }
+  .sheet.open{transform:translateY(0);}
+  .sheet-handle{width:36px; height:4px; border-radius:100px; background:var(--line-strong); margin:10px auto 0; flex:0 0 auto;}
+  .sheet-head{display:flex; align-items:flex-start; gap:10px; padding:12px 18px 14px; border-bottom:1px solid var(--line); flex:0 0 auto;}
+  .sheet-head .htext{flex:1; min-width:0;}
+  .sheet-head .kicker{font-family:var(--mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--accent);}
+  .sheet-head h3{font-size:16px; font-weight:600; line-height:1.35; margin-top:4px; font-family:var(--display);}
+  .sheet-head .sub{font-size:11.5px; color:var(--ink-dim); margin-top:5px; line-height:1.45;}
+  .sheet-close{
+    flex:0 0 auto; width:28px; height:28px; border-radius:50%; border:1px solid var(--line-strong);
+    background:transparent; color:var(--ink-dim); display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .sheet-body{padding:14px 18px calc(env(safe-area-inset-bottom,0px) + 22px); overflow-y:auto; font-size:13px; line-height:1.7; color:var(--ink-dim);}
+  .sheet-body p{margin:0 0 12px;}
+  .sheet-body p:last-child{margin-bottom:0;}
+  .sheet-body h4{font-family:var(--mono); font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-faint); margin:18px 0 7px;}
+  .sheet-body h4:first-child{margin-top:0;}
+  .bio-row{display:flex; justify-content:space-between; gap:14px; padding:6px 0; border-bottom:1px solid var(--line); font-size:12.5px;}
+  .bio-row:last-child{border-bottom:none;}
+  .bio-row .y{font-family:var(--mono); color:var(--ink-faint); flex:0 0 auto; white-space:pre-line; font-size:11px; padding-top:1px;}
+  .bio-row .d{color:var(--ink-dim); text-align:right;}
+  .kw-row{display:flex; flex-wrap:wrap; gap:6px; margin-top:2px;}
+  .kw{font-family:var(--mono); font-size:10px; padding:3px 8px; border-radius:100px; background:rgba(255,255,255,0.06); color:var(--ink-dim); border:1px solid var(--line);}
+  .contact-link{color:var(--accent-3); text-decoration:underline; text-underline-offset:2px;}
+
   ::selection{background:var(--accent); color:var(--accent-ink);}
   a{color:inherit;}
   @media (prefers-reduced-motion: reduce){ *{scroll-behavior:auto !important;} }
@@ -565,6 +613,22 @@
       </button>
     </nav>
 
+    <div class="sheet-overlay" id="sheetOverlay"></div>
+    <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head">
+        <div class="htext">
+          <div class="kicker" id="sheetKicker">Abstract</div>
+          <h3 id="sheetTitle"></h3>
+          <div class="sub" id="sheetSub"></div>
+        </div>
+        <button class="sheet-close" id="sheetClose" aria-label="Close">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="sheet-body" id="sheetBody"></div>
+    </div>
+
   </div>
 </div>
 
@@ -603,35 +667,257 @@
     else chip.textContent = "CONCLUDED";
   }catch(e){}
 
+  // ---------- speaker & abstract data (from the official symposium booklet) ----------
+  var SPEAKER_DETAILS = {
+    kbaral:{
+      name:"Kshitis Chandra Baral", credential:"Ph.D.", position:"Assistant Professor",
+      affiliation:"College of Pharmacy, Dongguk University, Republic of Korea", email:"kshitis087@gmail.com",
+      education:[["2024","Ph.D., Pharmaceutical Science, Dongguk University, Republic of Korea"],["2014","M.S., Pharmacy, Kathmandu University, Nepal"],["2010","B.S., Pharmacy, Kathmandu University, Nepal"]],
+      experience:[["2025–Present","Assistant Professor, College of Pharmacy, Dongguk University"],["2024–2025","Postdoctoral Researcher, Gangneung-Wonju National University"],["2017–2019","R&D Manager, Divine Healthcare Pvt. Ltd."],["2016–2017","R&D Officer, Quest Pharmaceuticals Pvt. Ltd."],["2010–2015","Quality Control Officer, Nepal Pharmaceuticals Laboratory Pvt. Ltd."]],
+      talk:{ title:"Extracellular Vesicles: Emerging Paradigms in Targeted Drug Delivery", byline:"Kshitis Chandra Baral", affil:"College of Pharmacy, Dongguk University",
+        abstract:["Extracellular vesicles (EVs) have emerged as highly promising natural nanocarriers for targeted drug delivery due to their excellent biocompatibility, low immunogenicity, intrinsic cell-targeting ability, and capacity to transport diverse biomolecules. Conventional drug delivery systems often suffer from poor target specificity, rapid systemic clearance, and off-target toxicity, creating a need for more efficient therapeutic delivery platforms. This presentation provides a comprehensive overview of EV biology, including their classification and biogenesis; molecular composition; isolation workflows; characterization techniques; and engineering strategies for loading therapeutic cargo.","Recent advances in EV engineering have significantly improved drug encapsulation efficiency, targeting precision, circulation stability, and therapeutic efficacy. Preclinical studies demonstrate encouraging results in cancer therapy, regenerative medicine, inflammatory disorders, and other precision medicine applications. Despite current challenges related to large-scale manufacturing, standardization, quality control, and regulatory approval, continued progress in EV research is accelerating their clinical translation.","Overall, extracellular vesicles represent a transformative next-generation drug delivery platform with substantial potential to improve therapeutic outcomes and advance personalized medicine."]
+      }
+    },
+    ysseo:{
+      name:"Yoon-Seok Seo", credential:"Ph.D.", position:"Postdoctoral Researcher",
+      affiliation:"College of Pharmacy, Dongguk University, Republic of Korea", email:"gugod11@dongguk.edu",
+      education:[["2026","Ph.D., Toxicology, Pharmacology, and Biochemistry, College of Pharmacy, Dongguk University, Republic of Korea"],["2019","M.S., College of Pharmacy, Dongguk University, Republic of Korea"],["2017","B.S., College of Pharmacy, Dongguk University, Republic of Korea"]],
+      experience:[["2026–Present","Postdoctoral Researcher, College of Pharmacy, Dongguk University"]],
+      talk:{ title:"Drp1 Couples NOX1-Derived ROS to Mitochondrial ROS Signaling, Mediating Angiotensin II-Evoked Ca²⁺ Mobilization and Contraction in Vascular Smooth Muscle", byline:"Yoon-Seok Seo", affil:"BK21 FOUR Team and Integrated Research Institute of Drug Development, College of Pharmacy, Dongguk University, Goyang-si, Gyeonggi-do 10326, Republic of Korea",
+        abstract:["Reactive oxygen species (ROS) act as key second messengers in angiotensin II (Ang II) signaling in vascular smooth muscle. NADPH oxidases (NOXs) and mitochondria are major ROS sources in vascular smooth muscle cells (VSMCs), but the mechanisms linking these sources during Ang II-evoked Ca²⁺ signaling remain unclear. We examined relationships among NOX1, dynamin-related protein 1 (Drp1), mitochondrial ROS, Ca²⁺ signaling, and vasoconstriction using rat aortic VSMCs, aortic rings, and in vivo pressor responses.","Ang II transiently increased mitochondrial ROS independent of cytosolic Ca²⁺ signals. Ang II also induced rapid, reversible mitochondrial fission dependent on Ca²⁺ and mitochondrial ROS. Ang II induced Drp1 cysteine sulfenylation, oligomerization, and mitochondrial translocation without increasing Drp1 Ser616 phosphorylation. NOX blockade suppressed Drp1 sulfenylation and mitochondrial recruitment, whereas NOX1 silencing abolished sulfenylation. Inhibition or silencing of NOX1 or Drp1 attenuated mitochondrial ROS and Ca²⁺ responses.","Mitochondria-targeted antioxidants, overexpression of superoxide dismutase 2 or mitochondria-targeted catalase, and site-selective suppressors of mitochondrial ROS production attenuated cytosolic Ca²⁺ elevation. These interventions reduced Ang II-induced Ca²⁺ release from the sarcoplasmic reticulum. Mitochondrial ROS scavenging and Drp1 inhibition attenuated aortic contraction and acute pressor responses. These findings identify a NOX1–Drp1–mitochondrial ROS axis that facilitates Ang II-evoked Ca²⁺ signaling and vasoconstriction."]
+      }
+    },
+    ejhong:{
+      name:"Eunjin Hong", credential:"Ph.D.", position:"Assistant Professor",
+      affiliation:"College of Pharmacy, Dongguk University, Republic of Korea", email:"ejhong@dongguk.edu",
+      education:[["2023","Ph.D., Clinical and Experimental Therapeutics, University of Southern California, CA, USA"],["2022","M.S., Regulatory Science, University of Southern California, CA, USA"],["2016","B.S., Pharmacy, Seoul National University, Republic of Korea"]],
+      experience:[["2025–Present","Assistant Professor, College of Pharmacy, Dongguk University"],["2023–2025","Assistant Professor, College of Pharmacy, CHA University"],["2023–2025","Associate Director, R&D Support Center, CHA Advanced Research Institute"],["2020–2023","Clinical Researcher, Center for Advanced Lung Diseases, Keck Hospital, University of Southern California"]],
+      talk:{ title:"Model-Informed Precision Dosing for Special Populations", byline:"Eunjin Hong", affil:"College of Pharmacy, Dongguk University",
+        abstract:["Special populations, including older adults and pregnant women, present unique challenges for optimal drug dosing due to substantial physiological variability and limited clinical pharmacokinetic data. Model-informed precision dosing (MIPD), particularly through physiologically based pharmacokinetic (PBPK) modeling, offers a quantitative framework to address these challenges.","This presentation highlights three applications of PBPK-based MIPD. In older adults, PBPK modeling was used to characterize the combined effects of aging and CYP2C19 phenotype on escitalopram exposure and to support genotype-informed dosing. A second study extended this approach to patient-specific virtual twins for valproic acid, integrating individual clinical characteristics to predict drug exposure and support personalized dosing. In pregnancy, a maternal–fetal PBPK model was developed for elexacaftor/tezacaftor/ivacaftor (ETI) to characterize gestational changes in maternal and fetal drug exposure and evaluate dosing adequacy.","Together, these studies demonstrate how PBPK-based MIPD can integrate population- and patient-specific factors to support individualized dosing decisions in special populations that are often underrepresented in clinical trials."]
+      }
+    },
+    julee:{
+      name:"Jong Uk Lee", credential:"Ph.D.", position:"Assistant Professor",
+      affiliation:"Department of Biomedical Engineering, Dongguk University, Republic of Korea", email:"jonguklee@dongguk.edu",
+      education:[["2019","Ph.D., Chemical and Biological Engineering, Korea University, Republic of Korea"],["2011","B.S., Chemical Engineering / Biotechnology, Sungkyunkwan University, Republic of Korea"]],
+      experience:[["2025–Present","Editor, BT News, The Korean Society of Biotechnology and Bioengineering; Planning Director, Division of Biotechnology, The Korean Society of Industrial and Engineering Chemistry"],["2024–Present","Assistant Professor, Dongguk University"],["2021–2024","Assistant Professor, Sunchon National University"],["2019–2021","Research Professor, Korea University"]],
+      talk:{ title:"Raman Spectromics and the Cross-Modal Translation of Exosomal Information into Clinical Indicators", byline:"Jong Uk Lee", affil:"Department of Biomedical Engineering, Dongguk University Bio-Medi Campus, 32, Dongguk-ro, Goyang, Gyeonggi-do, 10326, Republic of Korea",
+        abstract:["Molecular landscapes of clinical samples possess abundant information regarding the pathological states of various diseases but remain unreadable due to their inherent complexity. Conventional omics approaches return feature lists that require pre-determined references to interpret them as molecular profiles. Raman spectromics, an emerging strategy in which vibrational spectra of the samples are treated as a collective representation of molecular composition, requires neither prior selection of targets nor assignment of individual bands to distinguish each specimen.","Here, we apply this methodology to surface-enhanced Raman spectroscopy (SERS) of biofluid-derived exosomes with AI-powered interpretation of signals. In a patient cohort, a deep neural network classified clinician-assigned disease severity with over 95% accuracy. Moreover, the AI-aided spectromics approach was extended to build cross-modal correlations with clinical images, linking structural abnormalities with molecular signatures of diseases.","Overall, Raman spectromics converts a molecular fingerprint of a patient sample into clinically meaningful information, offering a route to patient stratification, non-invasive pharmacodynamic monitoring, as well as a bridge across diverse disease indications."]
+      }
+    },
+    sskang:{
+      name:"Seok-Seong Kang", credential:"Ph.D.", position:"Associate Professor",
+      affiliation:"Department of Food Science and Biotechnology, Dongguk University, Republic of Korea", email:"sskang@dgu.ac.kr",
+      education:[["2006","Ph.D., The University of New South Wales (UNSW), Australia"],["2000","M.S., Food Science and Biotechnology, Sungkyunkwan University, Republic of Korea"],["1998","B.S., Food Science and Biotechnology, Sungkyunkwan University, Republic of Korea"]],
+      experience:[["2016–Present","Associate Professor, Department of Food Science and Biotechnology, Dongguk University"],["2012–2016","Research Professor, School of Dentistry, Seoul National University"],["2007–2012","Researcher, International Vaccine Institute (IVI)"],["2005–2006","Research Scientist, Probiomics Ltd."]],
+      talk:{ title:"Multifunctional Bioactive Potential of Whey Fermented by Lactic Acid Bacteria", byline:"Seok-Seong Kang", affil:"Department of Food Science and Biotechnology, College of Life Science and Biotechnology, Dongguk University, Goyang, 10326, Korea",
+        abstract:["Whey, the major byproduct of cheese manufacturing, contains diverse bioactive proteins and peptides whose functionality can be substantially enhanced through fermentation by lactic acid bacteria (LAB). This study demonstrates the multifunctional bioactive potential of LAB-fermented whey in oral health, skin health and food safety applications.","Whey fermented by Enterococcus faecalis M157 suppressed Porphyromonas gingivalis lipopolysaccharide-induced inflammatory responses in macrophages and periodontal ligament cells through inhibition of MAPK/NF-κB signaling, and dose-dependently inhibited Streptococcus mutans biofilm formation by downregulating glucosyltransferase genes, indicating protective activity against periodontitis and dental caries.","Whey fermented by Levilactobacillus brevis SJH2 was enriched with amino acid- and organic acid-derived metabolites, including threonine, isoleucine, and lactic acid, which suppressed melanogenesis-related gene expression and melanin secretion in melanocytes while upregulating HAS2 through ERK/JNK signaling in keratinocytes, supporting anti-melanogenic and skin-hydrating applications.","Whey fermented by Lactiplantibacillus plantarum and Lacticaseibacillus rhamnosus GG disrupted multi-species biofilms of Escherichia coli O157:H7 and Listeria monocytogenes through a previously unrecognized mechanism: fermentation-driven hydrolysis of whey lipids generated free fatty acids whose catabolism elevated intracellular NADH and nitric oxide levels, activating phosphodiesterase activity, depleting c-di-GMP, and inducing active biofilm dispersal, with efficacy confirmed on refrigerated meat surfaces.","Collectively these findings demonstrate that LAB-mediated fermentation converts whey, an underutilized dairy byproduct, into a multifunctional bioactive material with anti-inflammatory, antibiofilm, anti-melanogenic, and skin-hydrating properties. This work highlights the translational potential of LAB-fermented whey as a functional food ingredient."]
+      }
+    },
+    kanazawa:{
+      name:"Takanori Kanazawa", credential:"Ph.D.", position:"Professor",
+      affiliation:"Graduate School of Biomedical Sciences, Tokushima University, Japan", email:"kanazawa@tokushima-u.ac.jp",
+      education:[["2010","Ph.D., Pharmacy, Tokyo University of Pharmacy and Life Science (TUPLS), Japan"],["2006","M.S., Graduate School of Pharmaceutical Sciences, TUPLS, Japan"],["2004","B.S., School of Pharmacy, TUPLS, Japan"]],
+      experience:[["2023–Present","Professor, Innovative Research Center for Drug Delivery System, Tokushima University"],["2023–Present","Professor, Graduate School of Biomedical Sciences, Tokushima University"],["2020–2023","Associate Professor, School of Pharmaceutical Sciences, University of Shizuoka"],["2017–2020","Lecturer, School of Pharmacy, Nihon University"],["2016–2017","Lecturer, School of Pharmacy, TUPLS"],["2011–2016","Assistant Professor, School of Pharmacy, TUPLS"],["2006–2010","Research Assistant, School of Pharmacy, TUPLS"]],
+      talk:{ title:"Development of Nose-to-Brain Nano-DDS for Non-Invasive RNA-Based Therapies of CNS Diseases", byline:"Takanori Kanazawa", affil:"Graduate School of Biomedical Sciences, Tokushima University · Innovative Research Center for Drug Delivery System, Tokushima University",
+        abstract:["Therapeutic modalities for CNS diseases with high unmet medical needs have expanded from small-molecule drugs to medium- and high-molecular-weight therapeutics, and more recently to RNA-based medicines, raising expectations for innovative drug development. However, the delivery of these modalities into the brain via systemic circulation is strictly limited by the blood–brain barrier (BBB). Therefore, establishing drug delivery systems (DDS) capable of overcoming the BBB is essential for advancing new therapeutics for CNS diseases.","In parallel with the diversification of therapeutic modalities, administration routes have also expanded. Among them, intranasal administration has attracted increasing attention as a non-invasive method for delivering therapeutic agents to the brain by bypassing the BBB through the direct nose-to-brain pathway. This route is particularly promising for RNA therapeutics, which exhibit extremely poor BBB permeability. Nevertheless, intranasal administration alone often results in insufficient delivery efficiency and limited penetration into deeper brain regions, and reports on spinal cord delivery via this route remain scarce.","To achieve efficient nose-to-brain delivery to the CNS, including the spinal cord, it is necessary to design nano-DDS carriers optimized for RNA medicines and other modalities, based on a mechanistic understanding of nose-to-brain and nose-to-spinal cord pharmacokinetics. In this context, research on nanoparticle-based DDS for nose-to-brain delivery has recently become more active and diversified.","In this symposium, we will review representative mechanisms and the characteristics of major nanoparticle platforms used for nose-to-brain delivery, and present our latest findings on CNS-targeted nano-DDS designed for non-invasive RNA-based therapies utilizing the nose-to-brain route."]
+      }
+    },
+    inuki:{
+      name:"Shinsuke Inuki", credential:"Ph.D.", position:"Professor",
+      affiliation:"Graduate School of Biomedical Sciences, Tokushima University, Japan", email:"sinuki@tokushima-u.ac.jp",
+      education:[["2011","Ph.D., Graduate School of Pharmaceutical Sciences, Kyoto University, Japan"],["2008","M.S., Graduate School of Pharmaceutical Sciences, Kyoto University, Japan"],["2006","B.S., Faculty of Pharmaceutical Sciences, Kyoto University, Japan"]],
+      experience:[["2025–Present","Professor, Institute of Photonics and Human Health Frontier, Tokushima University"],["2024–Present","Professor, Graduate School of Biomedical Sciences, Tokushima University"],["2020–2024","Associate Professor, Graduate School of Pharmaceutical Sciences, Kyoto University"],["2017–2020","Associate Professor, Graduate School of Pharmaceutical Sciences, Kyoto University"],["2014–2017","Research Associate, Faculty of Science and Technology, Keio University"],["2011–2014","Researcher, Fujifilm Corporation"],["2008–2011","JSPS Research Fellow, Graduate School of Pharmaceutical Sciences, Kyoto University"]],
+      talk:{ title:"Exploration and Functional Analysis of Immunomodulatory Molecules Using Organic Chemistry Approaches", byline:"Shinsuke Inuki", affil:"Graduate School of Biomedical Sciences, Tokushima University · Institute of Photonics and Human Health Frontier, Tokushima University",
+        abstract:["The immune system plays a central role not only in host defense against pathogens but also in maintaining tissue homeostasis through the recognition of endogenous molecules and metabolites derived from commensal microorganisms. These diverse immune functions are orchestrated by interactions between small-molecule ligands and immune receptors. Our research leverages organic chemistry to elucidate the molecular basis of immune regulation and to discover new therapeutic leads.","Among these studies, we have focused on the development of artificial ligands that modulate the activity of mucosal-associated invariant T (MAIT) cells. MAIT cells are one of the most abundant innate-like T cell populations in humans and play pivotal roles in antimicrobial immunity, cancer immunity and tissue repair. They are activated through T cell receptor recognition of small-molecule ligands presented by the MHC class I-related molecule MR1. The microbial metabolite 5-OP-RU is the most potent naturally occurring MAIT cell agonist identified to date; however, its extremely poor chemical stability has greatly limited its application in both biological studies and therapeutic development.","To overcome this limitation, we have undertaken the rational design of chemically stable MAIT cell agonists while retaining potent biological activity. Through comprehensive structure–activity relationship studies of 5-OP-RU derivatives, we identified the key structural features required for efficient MAIT cell activation and successfully developed chemically stable MAIT cell agonists. Structural analyses, including X-ray crystallography, revealed their molecular recognition mechanism by MR1 and the MAIT T-cell receptor, and these compounds exhibited potent immunomodulatory activity in vivo, demonstrating adjuvant effects in mouse models.","This work establishes a rational strategy for the development of chemically stable MAIT cell ligands and provides promising molecular tools for elucidating MAIT cell biology as well as lead compounds for the development of immunotherapies."]
+      }
+    },
+    nvhung:{
+      name:"Nguyen Van Hung", credential:"M.D., Ph.D.", position:"Associate Professor, Vice-Rector",
+      affiliation:"Phenikaa School of Medicine and Pharmacy, Phenikaa University, Vietnam", email:"hung.nguyenvan2@phenikaa-uni.edu.vn",
+      education:[["2002","Ph.D., Medical Pharmacology, Hanoi Medical University, Vietnam"],["1985","M.D., Hanoi Medical University, Vietnam"]],
+      experience:[["2025–Present","Vice-Rector, Phenikaa School of Medicine and Pharmacy"],["2023–Present","Associate Professor, Dean, Faculty of Pharmacy"],["2020–2023","Senior Lecturer of Pharmacology, Medical Ethics and Family Medicine, Haiphong University of Medicine and Pharmacy"],["2015–2020","Vice-Rector for Research and Graduate Education, Haiphong University of Medicine and Pharmacy"],["2011–2020","Dean of Faculty of Pharmacy, Haiphong University of Medicine and Pharmacy"],["1985–1988","Resident Physician; Teaching and Research Assistant in Pharmacology, Hanoi Medical University"]],
+      talk:{ title:"Rethinking Pharmacy Education for Next-Generation Drug Discovery: Bridging Clinical Practice and Pharmaceutical Innovation in Vietnam", byline:"Nguyen Van Hung", affil:"Faculty of Pharmacy, Phenikaa School of Medicine and Pharmacy, Phenikaa University",
+        abstract:["The rapid evolution of biomedical sciences, artificial intelligence and precision medicine is fundamentally transforming the landscape of drug discovery and pharmaceutical innovation. These advances require a new generation of pharmacists equipped not only with strong clinical competencies but also with interdisciplinary research capabilities and innovation-oriented mindsets. In many developing countries, including Vietnam, pharmacy education has traditionally emphasized pharmaceutical sciences, hospital pharmacy, and community pharmacy practice, while relatively limited attention has been given to integrating translational research, drug discovery, and pharmaceutical innovation into training.","This presentation discusses the urgent need to rethink pharmacy education in Vietnam to better prepare graduates for the era of next-generation drug discovery. It proposes a convergent educational framework that bridges clinical practice, biomedical research, digital health, and pharmaceutical innovation — including competency-based curriculum reform, early exposure to translational research, integration of pharmacogenomics and multi-omics technologies, AI and computational drug discovery, and stronger collaboration among universities, hospitals, industry and international partners.","Drawing on recent educational initiatives and institutional experiences in Vietnam, the presentation illustrates how academic–clinical–industrial partnerships can foster an innovation ecosystem that supports both patient-centered pharmaceutical care and future drug development, with emphasis on developing pharmacist-scientists able to translate unmet clinical needs into innovative therapeutic solutions.","Vietnam has the opportunity to cultivate a workforce capable of advancing precision medicine and strengthening the country's contribution to the global life sciences ecosystem — a model that may also serve other middle-income countries bridging healthcare practice and pharmaceutical innovation."],
+        keywords:["Pharmacy education","Next-generation drug discovery","Pharmaceutical innovation","Clinical pharmacy","Translational research","Precision medicine","Artificial intelligence","Vietnam"]
+      }
+    },
+    phtung:{
+      name:"Pham Ha Thanh Tung", credential:"Ph.D.", position:"Head of Department",
+      affiliation:"Faculty of Pharmacy, Phenikaa University, Vietnam", email:"tung.phamhathanh@phenikaa-uni.edu.vn",
+      education:[["2019","Ph.D., Pharmacy, College of Pharmacy, Seoul National University, Republic of Korea"],["2012","M.S., Pharmacy, Hanoi University of Pharmacy, Vietnam"],["2006","B.S., Pharmacy, Hanoi University of Pharmacy, Vietnam"]],
+      experience:[["2007–2022","Lecturer, Hanoi University of Pharmacy"]],
+      talk:{ title:"Vietnam's Plant Resource Diversity as a Source for Screening and Development of New Herbal Medicines", byline:"Pham Ha Thanh Tung", affil:"Department of Pharmacognosy and Traditional Pharmacy, Phenikaa University, Hanoi, Vietnam",
+        abstract:["Vietnam ranks 16th in the world for plant diversity, with more than 12,000 vascular plant species. Records of medicinal species rose from 1,350 in 1952 to 5,117 in 2020, about 16% of those known worldwide, and 54 ethnic groups add further candidates from their own plant knowledge. Few of these species have published bioactivity data, a smaller number a measured chemical profile, and only a few are grown as raw material of controlled quality. Three screening approaches were applied to develop a candidate species into a standardized product.","Screening can start from the international scientific record: taxa with published anti-diabetic evidence abroad were cross-referenced against the national plant checklist and local ethnomedicinal use. Gymnema sylvestre, documented worldwide but known in Vietnam only from century-old herbarium specimens, was relocated in the wild, and its published dataset guided comparative screening of four Gymnema and four Gynostemma species.","Systematic ethnomedicinal survey supplies candidates of a different kind. Fieldwork among the Dao, Muong, Hmong and Tay communities recorded more than a thousand species with use category, plant part and preparation, and candidates are ranked by convergent use before laboratory work begins. Bathing remedies of the Red Dao reached commercial production through this study, and a 2024–2027 program applies the same protocol to Dao plants used against dementia.","Phytochemical profiling defines the third approach: high-resolution mass spectrometry, molecular networking and a building-block strategy for triterpenoid profiling annotate an extract before isolation. Bioassay-guided fractionation then links each scaffold to a defined endpoint, from AMPK activation, PTP1B inhibition and GLUT4 translocation for metabolic targets to neuraminidase and viral protease inhibition for antiviral targets. Across forty published studies this approach has yielded new skeletons from Heliciopsis, Rhamnoneuron, Limacia and Panax vietnamensis.","Raw material is standardized in certified cultivation areas under a quality management system; extraction uses supercritical CO₂ and macroporous resin, and purified ingredients are formulated for pharmaceutical, functional food and cosmetic use. Current work centers on Vietnamese ginseng (Panax vietnamensis) and its processed products, alongside active ingredients from Kaempferia and Amomum species. The three approaches form one workflow that carries a ranked candidate species from the biodiversity record to a standardized active pharmaceutical ingredient."],
+        keywords:["Medicinal plant biodiversity","Ethnopharmacology","Bioassay-guided screening","Molecular networking","Gymnema","Gynostemma","Panax vietnamensis","GACP","Active pharmaceutical ingredients"]
+      }
+    },
+    ybian:{
+      name:"Yiying Bian", credential:"Ph.D.", position:"Associate Professor",
+      affiliation:"School of Public Health, China Medical University, China", email:"yybian@cmu.edu.cn",
+      education:[["2019","Ph.D., College of Pharmacy, Seoul National University, Republic of Korea"],["2013","B.S., Shenyang Pharmaceutical University, China"]],
+      experience:[["2021–Present","Associate Professor, School of Public Health, China Medical University"],["2019–2021","Assistant Professor, School of Public Health, China Medical University"],["2019","Lecturer / Postdoctoral Researcher, China Medical University"]],
+      talk:{ title:"Role of NRF2 in Megakaryocyte Differentiation and Platelet Function", byline:"Yiying Bian", affil:"Key Laboratory of Environmental Stress and Chronic Disease Control & Prevention (Ministry of Education) · School of Public Health, China Medical University, Shenyang, Liaoning, P.R. China",
+        abstract:["Myocardial infarction, ischemic stroke and venous thromboembolism are typical thrombotic diseases, and thrombotic disorders account for one quarter of all global deaths. Platelets and their precursor megakaryocytes are major cellular targets of environmental exposure, and functional abnormalities of these cells can break the homeostasis between hemostatic regulation and hemorrhagic risk.","Nuclear factor E2-related factor 2 (NRF2 / NFE2L2) is a core regulator of the antioxidant defense system and participates extensively in signaling pathways that modulate cell maturation and differentiation, yet its specific functions in megakaryocyte (MK) maturation and platelet function regulation remain largely unclear. This study combined in vitro and in vivo experimental models — including Nrf2 knockout mice, NRF2-silenced cells and high-throughput sequencing — to clarify the regulatory effects and molecular mechanisms of NRF2 in these processes.","The results identify novel molecular targets for the early diagnosis and intervention of hematologic disorders, and provide experimental evidence for optimizing prevention strategies for cardiovascular diseases characterized by platelet dysfunction."],
+        keywords:["Megakaryocyte","Platelet","Thrombosis","NRF2","Hematologic disorders"]
+      }
+    },
+    yjkwon:{
+      name:"Yong-Jun Kwon", credential:"Ph.D.", position:"Head, Precision Medicine Technology Unit",
+      affiliation:"Luxembourg Institute of Health (LIH), Luxembourg", email:"yong-jun.kwon@lih.lu",
+      education:[["2012","Ph.D., Interdisciplinary Program of Genomics in Science, Yonsei University, Republic of Korea"],["2005","M.S., Department of Pharmacology, College of Medicine, Hallym University, Republic of Korea"],["2003","B.S., Department of Biomaterial Engineering, College of Medicine, Kangwon National University, Republic of Korea"]],
+      experience:[["2023–Present","Head, Precision Medicine Technology Unit, Luxembourg Institute of Health"],["2023","Vice President, Centumbiosolution"],["2021–2023","Vice President, Non-Clinical Pharmacology; Board & Executive Member, 1ST Biotherapeutics"],["2019–2021","Head, Disease Modeling & Screening Platform / Personalized Therapy Discovery Group, Luxembourg Institute of Health"],["2015–2019","Head of Early Drug Discovery (Executive Member), Ksilink (French-German Translational Center)"],["2013–2014","Principal Scientist, Institute for Refractory Cancer Research, Samsung Medical Center"],["2007–2013","Group Leader, Discovery Biology & Screening Technology Platform Group, Institut Pasteur Korea"],["2005–2007","Researcher, Institut Pasteur Korea"]],
+      talk:{ title:"Accelerating Precision Oncology through Personalized Functional Profiling (PFP): A Functional Approach Beyond Genomics", byline:"Yong-Jun Kwon", affil:"Precision Medicine Technology Unit, Luxembourg Institute of Health (LIH), Luxembourg",
+        abstract:["Precision oncology has advanced cancer treatment through biomarker-driven therapeutic strategies. However, genomic information alone often fails to capture the dynamic biological behavior of tumors and their actual response to therapy, and the clinical benefit of genomic-guided treatment remains limited: only a small fraction of patients are eligible for genomically matched therapy, and even among those treated, clinical response rates remain modest.","To address this gap, the Luxembourg Institute of Health (LIH) developed a Personalized Functional Profiling (PFP) platform that integrates patient-derived tumor organoids with functional drug screening and genomic analysis. Three-dimensional tumor models generated directly from patient biopsies preserve the biological complexity and heterogeneity of the original tumor, and are challenged with a panel of clinically relevant, FDA-approved anticancer drugs; the resulting drug-sensitivity data are cross-correlated with genomic profiling to generate real-time, patient-specific treatment recommendations within a clinically actionable timeframe.","This functional approach complements genomic sequencing by revealing actual drug sensitivities that molecular alterations alone cannot predict. The platform has been applied across multiple cancer types — including glioblastoma, colorectal, pancreatic and non-small cell lung cancer — through international clinical collaborations, with case studies demonstrating strong correlation between PFP-predicted sensitivity and actual clinical outcomes, including off-label drug repurposing for patients who had exhausted conventional options.","By combining genomic and real-time functional data, PFP offers a more comprehensive understanding of tumor biology and a more precise basis for treatment selection — bridging molecular characterization and actual therapeutic response as a potential core component of next-generation precision oncology."]
+      }
+    },
+    hykim:{
+      name:"Hyun Young Kim", credential:"Pharm.D., Ph.D.", position:"Assistant Professor",
+      affiliation:"College of Pharmacy, Dankook University, Republic of Korea", email:"hyk@dankook.ac.kr",
+      education:[["2022","Ph.D., Pharmacology, Seoul National University, Republic of Korea"],["2017","Pharm.D., College of Pharmacy, Seoul National University, Republic of Korea"]],
+      experience:[["2025–Present","Assistant Professor, Pharmacology, College of Pharmacy, Dankook University"],["2022–2025","Postdoctoral Scholar, School of Medicine, University of California, San Diego"],["2022","Postdoctoral Scholar, College of Pharmacy and Research Institute of Pharmaceutical Sciences, Seoul National University"]],
+      talk:{ title:"Identification of Novel Therapeutic Targets in Hepatic Stellate Cell for Metabolic Dysfunction-Associated Steatohepatitis", byline:"Hyun Young Kim", affil:"College of Pharmacy, Dankook University",
+        abstract:["Metabolic dysfunction-associated steatotic liver disease ranges from metabolic dysfunction-associated steatotic liver (MASL) to metabolic dysfunction-associated steatohepatitis (MASH) with fibrosis. Transdifferentiation of hepatic stellate cells (HSCs) into fibrogenic myofibroblasts plays a critical role in the pathogenesis of MASH liver fibrosis. We compared transcriptome and chromatin accessibility of human HSCs from normal, MASL, and MASH livers at single-cell resolution, and identified a set of concurrently upregulated and more accessible core genes that drive activation of HSCs, including SERPINE1.","SERPINE1 mRNA was significantly upregulated in HSCs, but not in hepatocytes, under MASH conditions. Nanopore sequencing identified full-length SERPINE1 transcripts from human hepatocytes and HSCs, revealing distinct 3′ alternative polyadenylation (3′-APA) sites. Based on these differential sequences, we identified miR-10-5p, which is upregulated under MASH conditions and specifically targets the hepatocyte-specific SERPINE1 transcript, facilitating its degradation and suppressing expression in hepatocytes but not in HSCs.","The pathological relevance of SERPINE1 in HSCs was demonstrated using dsiRNA-based HSC-specific gene knockdown and pharmacological inhibition of SERPINE1 in 3D human MASH liver spheroids, as well as HSC-specific Serpine1 knockout mice."],
+        note:"Acknowledgement: This work was conducted in collaboration with University of California, San Diego."
+      }
+    },
+    hwkim:{
+      name:"Hyunwoo Kim", credential:"Ph.D.", position:"Assistant Professor · Director, Industrial Cooperation Center, Gyeonggi Anchor Project",
+      affiliation:"College of Pharmacy, Dongguk University, Republic of Korea", email:"hwkim8906@dongguk.edu",
+      education:[["2018","Ph.D., Pharmacy (Pharmacognosy), Seoul National University, Republic of Korea"],["2012","B.Sc., Pharmacy, Seoul National University, Republic of Korea"]],
+      experience:[["2022–Present","Assistant Professor, College of Pharmacy, Dongguk University"],["2019–2022","Postdoctoral Scholar, Scripps Institution of Oceanography, University of California, San Diego"],["2018–2019","Postdoctoral Researcher, Seoul National University"]],
+      talk:{ title:"Cheminformatic Approaches for the Discovery of Bioactive Natural Products", byline:"Hyunwoo Kim", affil:"College of Pharmacy, Dongguk University, Gyeonggi-do 10326, Korea",
+        abstract:["In recent years, natural product research has expanded beyond classical natural product chemistry methodologies to discover bioactive secondary metabolites by embracing new technologies such as genome mining, metabolomics, and machine learning for the rapid annotation of candidate molecular structures. As data size increases, various cheminformatic tools including deep neural networks (DNNs) have risen as a promising solution for enhancing drug discovery, genome mining, and structure elucidation — DNNs learn features directly from the data via back propagation, and have shown outstanding performance on computer vision, voice recognition and natural language processing.","Here, we introduce several cheminformatic approaches, including DNNs, to show how these tools deal with various data in natural product research. MS/MS molecular networking organizes MS/MS spectra into a spectral similarity-based network, grouping specialized metabolites into molecular families for dereplication and discovery across bacteria, fungi, marine, and plant natural products. DeepSAT and SMART-Miner are convolutional neural network-based systems for interpreting metabolite structures from NMR spectroscopy, and NPClassifier is a deep neural network-based tool for classifying natural product structures."],
+        keywords:["Natural product","Artificial intelligence","Deep learning","Convolutional neural network"]
+      }
+    },
+    hwko:{
+      name:"Hyuk Wan Ko", credential:"Ph.D.", position:"Professor",
+      affiliation:"Department of Biochemistry, Yonsei University, Republic of Korea", email:"kohw@yonsei.ac.kr",
+      education:[["2004","Ph.D., Program in Neuroscience, Rutgers University / UMDNJ, NJ, USA"],["1996","B.S., Biochemistry, Yonsei University, Republic of Korea"]],
+      experience:[["2025–Present","Professor, Department of Biochemistry, Yonsei University"],["2018–2025","Associate Professor, Department of Biochemistry, Yonsei University"],["2012–2018","Assistant / Associate Professor, College of Pharmacy, Dongguk University"],["2010–2012","Assistant Professor, Age-Related and Brain Diseases Research Center, Kyung Hee University"],["2009–2010","Research Professor, Neurodegeneration Control Research Center, Kyung Hee University"],["2005–2009","Postdoctoral Fellow, Department of Molecular Biology, Princeton University"],["2004–2005","Postdoctoral Associate, Department of Molecular Biology and Biochemistry, Rutgers University"]],
+      talk:{ title:"Tethering Organelles to Burn Fat: How ER–Mitochondria Contacts Control Energy Balance", byline:"Hyuk Wan Ko", affil:"Department of Biochemistry, College of Life Science and Biotechnology, Yonsei University",
+        abstract:["Obesity involves dysregulated adipose tissue expansion through mechanisms that remain incompletely understood. Here, we identify centrosomal protein CEP89 as a critical regulator of energy homeostasis through mechanisms involving mitochondrial quality control. CEP89-deficient mice develop progressive obesity without hyperphagia while maintaining normal glucose tolerance and insulin sensitivity, indicating disrupted energy expenditure rather than altered feeding behavior.","Mechanistically, CEP89 loss promotes adipogenic differentiation in white adipose tissue and triggers excessive mitophagic flux, resulting in mitochondrial depletion and impaired brown adipose tissue thermogenesis. We identify neuronal calcium sensor 1 (NCS1) as an essential CEP89 functional partner that cooperatively maintains mitochondrial homeostasis; both proteins associate with mitochondria and are required for mitochondria–endoplasmic reticulum contact site (MERC) integrity.","Loss of either protein disrupts MERC architecture, impairs inter-organellar calcium transfer, and triggers aberrant mitophagy that inappropriately targets healthy mitochondria for degradation. These findings reveal an unexpected role for centrosomal proteins in organelle contact site regulation, establishing MERC dysfunction as a mechanism whereby mitochondrial quality control defects drive metabolic disease through enhanced mitochondrial turnover."]
+      }
+    },
+    gmhur:{
+      name:"Gang Min Hur", credential:"M.D., Ph.D.", position:"Professor",
+      affiliation:"College of Medicine, Chungnam National University, Republic of Korea", email:"gmhur@cnu.ac.kr",
+      education:[["2004","Post-doc Fellow, National Cancer Institute / NIH, MD, USA"],["1996","Ph.D., Department of Pharmacology, College of Medicine, Chungnam National University, Republic of Korea"],["1991","M.S., Department of Pharmacology, College of Medicine, Chungnam National University, Republic of Korea"],["1989","M.D., Department of Medicine, College of Medicine, Chungnam National University, Republic of Korea"]],
+      experience:[["2024–Present","Director / Program Manager, Division of Medical Sciences, National Research Foundation of Korea"],["2005–Present","Associate Professor / Professor, Department of Pharmacology, Chungnam National University Medical School"],["2020–2024","Director, CNU BK21 InnoMed Education & Research Initiative, Graduate School, Chungnam National University"],["2015–2017","Academic Chair, Korean Society of Pharmacology"],["2014–2015","Deputy Dean for Research Affairs, Chungnam National University Medical School"],["2013","Deputy Dean for Student Affairs, Chungnam National University Medical School"]],
+      talk:{ title:"Cell Death Checkpoint Control by RIPK1 Ubiquitination", byline:"Gang Min Hur", affil:"Department of Pharmacology, College of Medicine, Chungnam National University",
+        abstract:["Receptor-interacting serine/threonine-protein kinase 1 (RIPK1) has emerged as a central molecular switch governing the balance between cell survival and death. In the TNF receptor 1 (TNFR1)-associated complex I, RIPK1 ubiquitination promotes NF-κB-dependent expression of pro-survival genes while restricting the transition to cytosolic death-inducing complex II, thereby establishing an early cell-death checkpoint. Disruption or remodeling of RIPK1 ubiquitination permits complex II formation and promotes apoptosis or necroptosis; RIPK1 kinase activity is essential for RIPK3–MLKL-mediated necroptosis but largely dispensable for apoptosis.","Here, we present recent findings demonstrating that the plant-derived compound eupatolide and the RIPK1-interacting protein ANKRD13a regulate RIPK1 cytotoxicity through distinct ubiquitin-dependent mechanisms. Eupatolide disrupts RIPK1 ubiquitination and NF-κB activation, thereby sensitizing cells to TNF-induced death, whereas ANKRD13a binds ubiquitinated RIPK1 through its fourth ubiquitin-interacting motif and restricts complex II assembly.","Together, these findings identify RIPK1 ubiquitination as a targetable checkpoint that determines cell survival or death — particularly relevant for apoptosis-resistant cancers."]
+      }
+    },
+    kyeonglee:{ name:"Kyeong Lee", position:"Dean, College of Pharmacy, Dongguk University", affiliation:"Dongguk University", guestNote:"Delivered the Welcome Address opening the symposium." },
+    jwyun:{ name:"Jae-woong Yun", position:"President, Dongguk University", affiliation:"Dongguk University", guestNote:"Delivered the Congratulatory Address marking Dongguk's 120th founding anniversary." },
+    ksmin:{ name:"Kyungsun Min", position:"Mayor, Goyang Special City", affiliation:"Goyang Special City", guestNote:"Delivered a Congratulatory Address on behalf of the city of Goyang." },
+    cichoi:{ name:"Chang-Ik Choi", position:"Dongguk University · Director, Industrial Cooperation Center, Gyeonggi Anchor Project", affiliation:"Dongguk University", guestNote:"Moderated the closing panel discussion on university–community–industry collaboration." },
+    yhchoi:{ name:"Young Hee Choi", position:"Director, Integrated Research Institute for Drug Development, Dongguk University", affiliation:"Dongguk University", guestNote:"Delivered the Closing Remarks." }
+  };
+
+  var sheetOverlay = document.getElementById("sheetOverlay");
+  var sheetEl = document.getElementById("sheet");
+  var sheetKicker = document.getElementById("sheetKicker");
+  var sheetTitle = document.getElementById("sheetTitle");
+  var sheetSub = document.getElementById("sheetSub");
+  var sheetBody = document.getElementById("sheetBody");
+
+  function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+
+  function openSheet(kind, id){
+    var d = SPEAKER_DETAILS[id];
+    if(!d) return;
+    if(kind === "abstract" && d.talk){
+      sheetKicker.textContent = "Abstract";
+      sheetTitle.textContent = d.talk.title;
+      sheetSub.textContent = d.talk.byline + (d.talk.affil ? " — " + d.talk.affil : "");
+      var h = d.talk.abstract.map(function(p){ return "<p>"+esc(p)+"</p>"; }).join("");
+      if(d.talk.keywords){
+        h += '<h4>Keywords</h4><div class="kw-row">'+d.talk.keywords.map(function(k){return '<span class="kw">'+esc(k)+'</span>';}).join("")+'</div>';
+      }
+      if(d.talk.note){ h += "<p style=\"margin-top:14px; font-style:italic; color:var(--ink-faint);\">"+esc(d.talk.note)+"</p>"; }
+      h += '<h4>Speaker</h4><p>'+esc(d.name)+(d.position? " — "+esc(d.position):"")+'</p>';
+      sheetBody.innerHTML = h;
+    } else {
+      sheetKicker.textContent = "Speaker";
+      sheetTitle.textContent = d.name;
+      sheetSub.textContent = (d.position||"") + (d.affiliation ? " · " + d.affiliation : "");
+      var body = "";
+      if(d.guestNote){
+        body += "<p>"+esc(d.guestNote)+"</p>";
+      }
+      if(d.education){
+        body += '<h4>Education</h4>' + d.education.map(function(e){ return '<div class="bio-row"><span class="y">'+esc(e[0])+'</span><span class="d">'+esc(e[1])+'</span></div>'; }).join("");
+      }
+      if(d.experience){
+        body += '<h4>Professional Experience</h4>' + d.experience.map(function(e){ return '<div class="bio-row"><span class="y">'+esc(e[0])+'</span><span class="d">'+esc(e[1])+'</span></div>'; }).join("");
+      }
+      if(d.talk){
+        body += '<h4>Symposium Talk</h4><p><b style="color:var(--ink);">'+esc(d.talk.title)+'</b></p>';
+      }
+      if(d.email){
+        body += '<h4>Contact</h4><p><a class="contact-link" href="mailto:'+esc(d.email)+'">'+esc(d.email)+'</a></p>';
+      }
+      sheetBody.innerHTML = body;
+    }
+    sheetOverlay.classList.add("open");
+    sheetEl.classList.add("open");
+    sheetEl.setAttribute("aria-hidden","false");
+  }
+  function closeSheet(){
+    sheetOverlay.classList.remove("open");
+    sheetEl.classList.remove("open");
+    sheetEl.setAttribute("aria-hidden","true");
+  }
+  sheetOverlay.addEventListener("click", closeSheet);
+  document.getElementById("sheetClose").addEventListener("click", closeSheet);
+
+  document.addEventListener("click", function(e){
+    var btn = e.target.closest("[data-open]");
+    if(!btn) return;
+    var parts = btn.dataset.open.split(":");
+    openSheet(parts[0], parts[1]);
+  });
+
   // ---------- program data ----------
   var PROGRAM = [
     {type:"block", time:"09:00\n09:55", title:"Registration"},
-    {type:"talk", time:"09:55\n10:00", title:"Welcome Address", who:"Kyeong Lee — Dean, College of Pharmacy, Dongguk University"},
+    {type:"talk", time:"09:55\n10:00", title:"Welcome Address", who:"Kyeong Lee — Dean, College of Pharmacy, Dongguk University", id:"kyeonglee"},
     {type:"session", name:"Session 1", chair:"Woong Sub Byun", chairAffil:"Dongguk University"},
-    {type:"talk", time:"10:00\n10:20", title:"Extracellular Vesicles: Emerging Paradigms in Targeted Drug Delivery", who:"Kshitis Chandra Baral — Dongguk University"},
-    {type:"talk", time:"10:20\n10:40", title:"Drp1 Couples NOX1-Derived ROS to Mitochondrial ROS Signaling, Mediating Angiotensin II-Evoked Ca²⁺ Mobilization and Contraction in Vascular Smooth Muscle", who:"Yoon-Seok Seo — Dongguk University"},
-    {type:"talk", time:"10:40\n11:00", title:"Model-Informed Precision Dosing for Special Populations", who:"Eunjin Hong — Dongguk University"},
-    {type:"talk", time:"11:00\n11:25", title:"Raman Spectromics and the Cross-Modal Translation of Exosomal Information into Clinical Indicators", who:"Jong Uk Lee — Dongguk University"},
-    {type:"talk", time:"11:25\n11:50", title:"Multifunctional Bioactive Potential of Whey Fermented by Lactic Acid Bacteria", who:"Seok-Seong Kang — Dongguk University"},
+    {type:"talk", time:"10:00\n10:20", title:"Extracellular Vesicles: Emerging Paradigms in Targeted Drug Delivery", who:"Kshitis Chandra Baral — Dongguk University", id:"kbaral"},
+    {type:"talk", time:"10:20\n10:40", title:"Drp1 Couples NOX1-Derived ROS to Mitochondrial ROS Signaling, Mediating Angiotensin II-Evoked Ca²⁺ Mobilization and Contraction in Vascular Smooth Muscle", who:"Yoon-Seok Seo — Dongguk University", id:"ysseo"},
+    {type:"talk", time:"10:40\n11:00", title:"Model-Informed Precision Dosing for Special Populations", who:"Eunjin Hong — Dongguk University", id:"ejhong"},
+    {type:"talk", time:"11:00\n11:25", title:"Raman Spectromics and the Cross-Modal Translation of Exosomal Information into Clinical Indicators", who:"Jong Uk Lee — Dongguk University", id:"julee"},
+    {type:"talk", time:"11:25\n11:50", title:"Multifunctional Bioactive Potential of Whey Fermented by Lactic Acid Bacteria", who:"Seok-Seong Kang — Dongguk University", id:"sskang"},
     {type:"block", time:"11:50\n13:00", title:"Lunch Break"},
     {type:"session", name:"Session 2", chair:"Hyunwoo Kim", chairAffil:"Dongguk University"},
-    {type:"talk", special:true, time:"13:00\n13:10", title:"Congratulatory Address &amp; Group Photo", who:"Jae-woong Yun — President, Dongguk University · Kyungsun Min — Mayor, Goyang Special City"},
-    {type:"talk", time:"13:10\n13:35", title:"Development of Nose-to-Brain Nano-DDS for Non-Invasive RNA-Based Therapies of CNS Diseases", who:"Takanori Kanazawa — Tokushima University, Japan"},
-    {type:"talk", time:"13:35\n14:00", title:"Exploration and Functional Analysis of Immunomodulatory Molecules Using Organic Chemistry Approaches", who:"Shinsuke Inuki — Tokushima University, Japan"},
-    {type:"talk", time:"14:00\n14:25", title:"Rethinking Pharmacy Education for Next-Generation Drug Discovery: Bridging Clinical Practice and Pharmaceutical Innovation in Vietnam", who:"Nguyen Van Hung — Phenikaa University, Vietnam"},
-    {type:"talk", time:"14:25\n14:50", title:"Vietnam's Plant Resource Diversity as a Source for Screening and Development of New Herbal Medicines", who:"Pham Ha Thanh Tung — Phenikaa University, Vietnam"},
-    {type:"talk", time:"14:50\n15:15", title:"Role of NRF2 in Megakaryocyte Differentiation and Platelet Function", who:"Yiying Bian — China Medical University, China"},
+    {type:"talk", special:true, time:"13:00\n13:10", title:"Congratulatory Address &amp; Group Photo", who:"Jae-woong Yun — President, Dongguk University · Kyungsun Min — Mayor, Goyang Special City", ids:["jwyun","ksmin"]},
+    {type:"talk", time:"13:10\n13:35", title:"Development of Nose-to-Brain Nano-DDS for Non-Invasive RNA-Based Therapies of CNS Diseases", who:"Takanori Kanazawa — Tokushima University, Japan", id:"kanazawa"},
+    {type:"talk", time:"13:35\n14:00", title:"Exploration and Functional Analysis of Immunomodulatory Molecules Using Organic Chemistry Approaches", who:"Shinsuke Inuki — Tokushima University, Japan", id:"inuki"},
+    {type:"talk", time:"14:00\n14:25", title:"Rethinking Pharmacy Education for Next-Generation Drug Discovery: Bridging Clinical Practice and Pharmaceutical Innovation in Vietnam", who:"Nguyen Van Hung — Phenikaa University, Vietnam", id:"nvhung"},
+    {type:"talk", time:"14:25\n14:50", title:"Vietnam's Plant Resource Diversity as a Source for Screening and Development of New Herbal Medicines", who:"Pham Ha Thanh Tung — Phenikaa University, Vietnam", id:"phtung"},
+    {type:"talk", time:"14:50\n15:15", title:"Role of NRF2 in Megakaryocyte Differentiation and Platelet Function", who:"Yiying Bian — China Medical University, China", id:"ybian"},
     {type:"block", time:"15:15\n15:30", title:"Coffee Break"},
     {type:"session", name:"Session 3", chair:"Chang Hoon Lee", chairAffil:"Dongguk University"},
-    {type:"talk", time:"15:30\n15:55", title:"Accelerating Precision Oncology through Personalized Functional Profiling (PFP): A Functional Approach Beyond Genomics", who:"Yong-Jun Kwon — Luxembourg Institute of Health"},
-    {type:"talk", time:"15:55\n16:20", title:"Identification of Novel Therapeutic Targets in Hepatic Stellate Cell for Metabolic Dysfunction-Associated Steatohepatitis", who:"Hyun Young Kim — Dankook University"},
-    {type:"talk", time:"16:20\n16:45", title:"Cheminformatic Approaches for the Discovery of Bioactive Natural Products", who:"Hyunwoo Kim — Dongguk University · Director, Industrial Cooperation Center, Gyeonggi Anchor Project"},
-    {type:"talk", time:"16:45\n17:10", title:"Tethering Organelles to Burn Fat: How ER–Mitochondria Contacts Control Energy Balance", who:"Hyuk Wan Ko — Yonsei University"},
-    {type:"talk", time:"17:10\n17:35", title:"Cell Death Checkpoint Control by RIPK1 Ubiquitination", who:"Gang Min Hur — Chungnam National University"},
-    {type:"talk", special:true, time:"17:35\n17:55", title:"Panel Discussion: University–Community–Industry Collaboration", who:"Moderator: Chang-Ik Choi — Dongguk University, Director, Industrial Cooperation Center, Gyeonggi Anchor Project"},
-    {type:"talk", time:"17:55\n18:00", title:"Closing Remarks", who:"Young Hee Choi — Director, Integrated Research Institute for Drug Development, Dongguk University"},
+    {type:"talk", time:"15:30\n15:55", title:"Accelerating Precision Oncology through Personalized Functional Profiling (PFP): A Functional Approach Beyond Genomics", who:"Yong-Jun Kwon — Luxembourg Institute of Health", id:"yjkwon"},
+    {type:"talk", time:"15:55\n16:20", title:"Identification of Novel Therapeutic Targets in Hepatic Stellate Cell for Metabolic Dysfunction-Associated Steatohepatitis", who:"Hyun Young Kim — Dankook University", id:"hykim"},
+    {type:"talk", time:"16:20\n16:45", title:"Cheminformatic Approaches for the Discovery of Bioactive Natural Products", who:"Hyunwoo Kim — Dongguk University · Director, Industrial Cooperation Center, Gyeonggi Anchor Project", id:"hwkim"},
+    {type:"talk", time:"16:45\n17:10", title:"Tethering Organelles to Burn Fat: How ER–Mitochondria Contacts Control Energy Balance", who:"Hyuk Wan Ko — Yonsei University", id:"hwko"},
+    {type:"talk", time:"17:10\n17:35", title:"Cell Death Checkpoint Control by RIPK1 Ubiquitination", who:"Gang Min Hur — Chungnam National University", id:"gmhur"},
+    {type:"talk", special:true, time:"17:35\n17:55", title:"Panel Discussion: University–Community–Industry Collaboration", who:"Moderator: Chang-Ik Choi — Dongguk University, Director, Industrial Cooperation Center, Gyeonggi Anchor Project", id:"cichoi"},
+    {type:"talk", time:"17:55\n18:00", title:"Closing Remarks", who:"Young Hee Choi — Director, Integrated Research Institute for Drug Development, Dongguk University", id:"yhchoi"},
     {type:"block", time:"18:00\n—", title:"Group Photo &amp; Reception"}
   ];
+
+  function whoHtml(item){
+    if(item.ids){
+      var names = item.who.split(" · ");
+      return item.ids.map(function(id,i){ return '<button class="linklike" data-open="bio:'+id+'">'+esc(names[i]||"")+'</button>'; }).join(' · ');
+    }
+    if(item.id) return '<button class="linklike" data-open="bio:'+item.id+'">'+esc(item.who)+'</button>';
+    return esc(item.who||"");
+  }
 
   var listEl = document.getElementById("programList");
   var html = "";
@@ -641,33 +927,37 @@
     } else if(item.type === "block"){
       html += '<div class="row block"><div class="time">'+item.time+'</div><div class="body"><div class="ttl">'+item.title+'</div></div></div>';
     } else {
-      html += '<div class="row'+(item.special?' special':'')+'"><div class="time">'+item.time+'</div><div class="body"><div class="ttl">'+item.title+'</div><div class="who">'+item.who+'</div></div></div>';
+      var hasAbstract = item.id && SPEAKER_DETAILS[item.id] && SPEAKER_DETAILS[item.id].talk;
+      var ttlHtml = hasAbstract
+        ? '<button class="linklike ttl" data-open="abstract:'+item.id+'">'+esc(item.title)+'<span class="aff-hint">Abstract ›</span></button>'
+        : '<div class="ttl">'+item.title+'</div>';
+      html += '<div class="row'+(item.special?' special':'')+'"><div class="time">'+item.time+'</div><div class="body">'+ttlHtml+'<div class="who">'+whoHtml(item)+'</div></div></div>';
     }
   });
   listEl.innerHTML = html;
 
   // ---------- speakers data ----------
   var SPEAKERS = [
-    {name:"Jae-woong Yun", affil:"President, Dongguk University", tag:"guest", tagLabel:"Distinguished Guest", talk:"Congratulatory Address", time:"13:00"},
-    {name:"Kyungsun Min", affil:"Mayor, Goyang Special City", tag:"guest", tagLabel:"Distinguished Guest", talk:"Congratulatory Address", time:"13:00"},
-    {name:"Kyeong Lee", affil:"Dean, College of Pharmacy, Dongguk University", tag:"guest", tagLabel:"Distinguished Guest", talk:"Welcome Address", time:"09:55"},
-    {name:"Takanori Kanazawa", affil:"Tokushima University, Japan", tag:"intl", tagLabel:"International", talk:"Development of Nose-to-Brain Nano-DDS for Non-Invasive RNA-Based Therapies of CNS Diseases", time:"13:10"},
-    {name:"Shinsuke Inuki", affil:"Tokushima University, Japan", tag:"intl", tagLabel:"International", talk:"Exploration and Functional Analysis of Immunomodulatory Molecules Using Organic Chemistry Approaches", time:"13:35"},
-    {name:"Nguyen Van Hung", affil:"Phenikaa University, Vietnam", tag:"intl", tagLabel:"International", talk:"Rethinking Pharmacy Education for Next-Generation Drug Discovery", time:"14:00"},
-    {name:"Pham Ha Thanh Tung", affil:"Phenikaa University, Vietnam", tag:"intl", tagLabel:"International", talk:"Vietnam's Plant Resource Diversity as a Source for New Herbal Medicines", time:"14:25"},
-    {name:"Yiying Bian", affil:"China Medical University, China", tag:"intl", tagLabel:"International", talk:"Role of NRF2 in Megakaryocyte Differentiation and Platelet Function", time:"14:50"},
-    {name:"Yong-Jun Kwon", affil:"Luxembourg Institute of Health", tag:"intl", tagLabel:"International", talk:"Accelerating Precision Oncology through Personalized Functional Profiling (PFP)", time:"15:30"},
-    {name:"Hyun Young Kim", affil:"Dankook University", tag:"invited", tagLabel:"Invited · Korea", talk:"Novel Therapeutic Targets in Hepatic Stellate Cell for MASH", time:"15:55"},
-    {name:"Hyuk Wan Ko", affil:"Yonsei University", tag:"invited", tagLabel:"Invited · Korea", talk:"Tethering Organelles to Burn Fat: ER–Mitochondria Contacts", time:"16:45"},
-    {name:"Gang Min Hur", affil:"Chungnam National University", tag:"invited", tagLabel:"Invited · Korea", talk:"Cell Death Checkpoint Control by RIPK1 Ubiquitination", time:"17:10"},
-    {name:"Kshitis Chandra Baral", affil:"Dongguk University", tag:"dgu", tagLabel:"Dongguk University", talk:"Extracellular Vesicles: Emerging Paradigms in Targeted Drug Delivery", time:"10:00"},
-    {name:"Yoon-Seok Seo", affil:"Dongguk University", tag:"dgu", tagLabel:"Dongguk University", talk:"Drp1 Couples NOX1-Derived ROS to Mitochondrial ROS Signaling", time:"10:20"},
-    {name:"Eunjin Hong", affil:"Dongguk University", tag:"dgu", tagLabel:"Dongguk University", talk:"Model-Informed Precision Dosing for Special Populations", time:"10:40"},
-    {name:"Jong Uk Lee", affil:"Dongguk University", tag:"dgu", tagLabel:"Dongguk University", talk:"Raman Spectromics and Cross-Modal Translation of Exosomal Information", time:"11:00"},
-    {name:"Seok-Seong Kang", affil:"Dongguk University", tag:"dgu", tagLabel:"Dongguk University", talk:"Multifunctional Bioactive Potential of Whey Fermented by Lactic Acid Bacteria", time:"11:25"},
-    {name:"Hyunwoo Kim", affil:"Dongguk University · Director, Industrial Cooperation Center", tag:"dgu", tagLabel:"Dongguk University", talk:"Cheminformatic Approaches for the Discovery of Bioactive Natural Products", time:"16:20"},
-    {name:"Chang-Ik Choi", affil:"Dongguk University · Director, Industrial Cooperation Center", tag:"dgu", tagLabel:"Dongguk University", talk:"Moderator — Panel: University–Community–Industry Collaboration", time:"17:35"},
-    {name:"Young Hee Choi", affil:"Dongguk University · Director, Integrated Research Institute for Drug Development", tag:"dgu", tagLabel:"Dongguk University", talk:"Closing Remarks", time:"17:55"}
+    {name:"Jae-woong Yun", affil:"President, Dongguk University", tag:"guest", tagLabel:"Distinguished Guest", talk:"Congratulatory Address", time:"13:00", id:"jwyun"},
+    {name:"Kyungsun Min", affil:"Mayor, Goyang Special City", tag:"guest", tagLabel:"Distinguished Guest", talk:"Congratulatory Address", time:"13:00", id:"ksmin"},
+    {name:"Kyeong Lee", affil:"Dean, College of Pharmacy, Dongguk University", tag:"guest", tagLabel:"Distinguished Guest", talk:"Welcome Address", time:"09:55", id:"kyeonglee"},
+    {name:"Takanori Kanazawa", affil:"Tokushima University, Japan", tag:"intl", tagLabel:"International", talk:"Development of Nose-to-Brain Nano-DDS for Non-Invasive RNA-Based Therapies of CNS Diseases", time:"13:10", id:"kanazawa"},
+    {name:"Shinsuke Inuki", affil:"Tokushima University, Japan", tag:"intl", tagLabel:"International", talk:"Exploration and Functional Analysis of Immunomodulatory Molecules Using Organic Chemistry Approaches", time:"13:35", id:"inuki"},
+    {name:"Nguyen Van Hung", affil:"Phenikaa University, Vietnam", tag:"intl", tagLabel:"International", talk:"Rethinking Pharmacy Education for Next-Generation Drug Discovery", time:"14:00", id:"nvhung"},
+    {name:"Pham Ha Thanh Tung", affil:"Phenikaa University, Vietnam", tag:"intl", tagLabel:"International", talk:"Vietnam's Plant Resource Diversity as a Source for New Herbal Medicines", time:"14:25", id:"phtung"},
+    {name:"Yiying Bian", affil:"China Medical University, China", tag:"intl", tagLabel:"International", talk:"Role of NRF2 in Megakaryocyte Differentiation and Platelet Function", time:"14:50", id:"ybian"},
+    {name:"Yong-Jun Kwon", affil:"Luxembourg Institute of Health", tag:"intl", tagLabel:"International", talk:"Accelerating Precision Oncology through Personalized Functional Profiling (PFP)", time:"15:30", id:"yjkwon"},
+    {name:"Hyun Young Kim", affil:"Dankook University", tag:"invited", tagLabel:"Invited · Korea", talk:"Novel Therapeutic Targets in Hepatic Stellate Cell for MASH", time:"15:55", id:"hykim"},
+    {name:"Hyuk Wan Ko", affil:"Yonsei University", tag:"invited", tagLabel:"Invited · Korea", talk:"Tethering Organelles to Burn Fat: ER–Mitochondria Contacts", time:"16:45", id:"hwko"},
+    {name:"Gang Min Hur", affil:"Chungnam National University", tag:"invited", tagLabel:"Invited · Korea", talk:"Cell Death Checkpoint Control by RIPK1 Ubiquitination", time:"17:10", id:"gmhur"},
+    {name:"Kshitis Chandra Baral", affil:"Dongguk University", tag:"dgu", tagLabel:"Dongguk University", talk:"Extracellular Vesicles: Emerging Paradigms in Targeted Drug Delivery", time:"10:00", id:"kbaral"},
+    {name:"Yoon-Seok Seo", affil:"Dongguk University", tag:"dgu", tagLabel:"Dongguk University", talk:"Drp1 Couples NOX1-Derived ROS to Mitochondrial ROS Signaling", time:"10:20", id:"ysseo"},
+    {name:"Eunjin Hong", affil:"Dongguk University", tag:"dgu", tagLabel:"Dongguk University", talk:"Model-Informed Precision Dosing for Special Populations", time:"10:40", id:"ejhong"},
+    {name:"Jong Uk Lee", affil:"Dongguk University", tag:"dgu", tagLabel:"Dongguk University", talk:"Raman Spectromics and Cross-Modal Translation of Exosomal Information", time:"11:00", id:"julee"},
+    {name:"Seok-Seong Kang", affil:"Dongguk University", tag:"dgu", tagLabel:"Dongguk University", talk:"Multifunctional Bioactive Potential of Whey Fermented by Lactic Acid Bacteria", time:"11:25", id:"sskang"},
+    {name:"Hyunwoo Kim", affil:"Dongguk University · Director, Industrial Cooperation Center", tag:"dgu", tagLabel:"Dongguk University", talk:"Cheminformatic Approaches for the Discovery of Bioactive Natural Products", time:"16:20", id:"hwkim"},
+    {name:"Chang-Ik Choi", affil:"Dongguk University · Director, Industrial Cooperation Center", tag:"dgu", tagLabel:"Dongguk University", talk:"Moderator — Panel: University–Community–Industry Collaboration", time:"17:35", id:"cichoi"},
+    {name:"Young Hee Choi", affil:"Dongguk University · Director, Integrated Research Institute for Drug Development", tag:"dgu", tagLabel:"Dongguk University", talk:"Closing Remarks", time:"17:55", id:"yhchoi"}
   ];
 
   function initials(name){
@@ -678,12 +968,16 @@
   function renderSpeakers(filter){
     var items = SPEAKERS.filter(function(s){ return filter === "all" || s.tag === filter; });
     speakerListEl.innerHTML = items.map(function(s){
+      var hasAbstract = s.id && SPEAKER_DETAILS[s.id] && SPEAKER_DETAILS[s.id].talk;
+      var talkHtml = hasAbstract
+        ? '<button class="linklike" data-open="abstract:'+s.id+'">'+esc(s.talk)+'<span class="aff-hint">Abstract ›</span></button>'
+        : esc(s.talk);
       return '<div class="speaker">'+
         '<div class="av">'+initials(s.name)+'</div>'+
         '<div class="info">'+
-          '<div class="name-row"><span class="name">'+s.name+'</span><span class="tagpill '+s.tag+'">'+s.tagLabel+'</span></div>'+
+          '<div class="name-row"><button class="linklike name" data-open="bio:'+s.id+'">'+esc(s.name)+'</button><span class="tagpill '+s.tag+'">'+s.tagLabel+'</span></div>'+
           '<div class="affil">'+s.affil+'</div>'+
-          '<div class="talk">'+s.talk+'</div>'+
+          '<div class="talk">'+talkHtml+'</div>'+
           '<div class="time">'+s.time+' · Program</div>'+
         '</div>'+
       '</div>';
